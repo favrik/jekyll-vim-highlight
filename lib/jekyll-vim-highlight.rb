@@ -40,14 +40,14 @@ Valid syntax: vim_highlight <file_extension> [linenos]
 
     def render(context)
       code = super.to_s.gsub(/\A(\n|\r)+|(\n|\r)+\z/, '')
-      render_with_vim(code)
+      add_code_tag(render_with_vim(code))
     end
 
     def render_with_vim(code)
       output = vim_output(code)
       needle = 'vimCodeElement'
       start_position = output.index(needle) + needle.length + 2
-      end_position = output.index('</pre>')
+      end_position = output.index('</pre>') - 1
       output[start_position..end_position]
     end
 
@@ -55,8 +55,25 @@ Valid syntax: vim_highlight <file_extension> [linenos]
       tempfile = Tempfile.new(['vimhighlight-temp', '.' + @file_extension])
       tempfile.write(code)
       tempfile.close
-      `gvim -f +"syn on" +"run! syntax/2html.vim" +"wq" +"q" #{tempfile.path}`
-      File.read(tempfile.path + '.html')
+      vim_to_html(tempfile.path)
+      IO.read(tempfile.path + '.html')
+    end
+
+    def vim_output2(code)
+      hash = Digest::MD5.hexdigest(code)
+      file_path = File.join(Dir.tmpdir(), hash + '.' + @file_extension)
+      IO.write(file_path, code)
+      vim_to_html(file_path)
+      puts 'vim completed'
+      IO.read(file_path + '.html')
+    end
+
+    def vim_to_html(file_path)
+      `gvim -f +"syn on" +"run! syntax/2html.vim" +"wq" +"q" #{file_path}`
+    end
+
+    def add_code_tag(code)
+      "<figure class=\"highlight\"><pre><code>#{code.chomp}</code></pre></figure>"
     end
   end
 end
